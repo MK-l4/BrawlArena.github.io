@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Brawl Arena PvP v4</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #0f0a1e;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #fff;
+    height: 100%; overflow: hidden;
+    touch-action: none; user-select: none;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+
+  canvas { background: #2a1a4a; display: block; touch-action: none; }
+
+  #hud {
+    position: fixed; top: 6px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; align-items: center;
+    font-size: 11px; z-index: 5;
+    background: rgba(0,0,0,0.7); padding: 5px 12px; border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.15);
+    white-space: nowrap;
+  }
+  .stat { display: flex; align-items: center; gap: 3px; }
+  .val { color: #ffd700; font-weight: bold; }
+  .sep { color: #444; }
+  .me-val { color: #4fc3f7; font-weight: bold; }
+  .enemy-val { color: #ff6b6b; font-weight: bold; }
+
+  /* Индикатор супера сверху */
+  #superBar {
+    position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 10px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 5px; overflow: hidden;
+    border: 1px solid rgba(255,215,0,0.3);
+    z-index: 5;
+  }
+  #superFill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #ffd700, #ff8c00);
+    transition: width 0.1s linear;
+  }
+  #superBar.frenzy {
+    animation: frenzyBar 0.3s infinite;
+  }
+  @keyframes frenzyBar {
+    0%, 100% { box-shadow: 0 0 10px #ffd700; }
+    50% { box-shadow: 0 0 20px #ff0000; }
+  }
+
+  /* ==== СТИКИ (два независимых) ==== */
+  #joyL, #joyR {
+    position: fixed; bottom: 25px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 3px solid rgba(255,255,255,0.2);
+    z-index: 10;
+    touch-action: none;
+    pointer-events: auto;
+  }
+  #joyL { left: 20px; }
+  #joyR { right: 20px; }
+  #stickL, #stickR {
+    position: absolute; left: 50%; top: 50%;
+    width: 58px; height: 58px; border-radius: 50%;
+    transform: translate(-50%,-50%);
+    box-shadow: 0 0 12px rgba(0,0,0,0.5);
+    pointer-events: none;
+  }
+  #stickL { background: radial-gradient(circle at 30% 30%, #4fc3f7, #0288d1); border: 3px solid #fff; }
+  #stickR { background: radial-gradient(circle at 30% 30%, #ff8a65, #e64a19); border: 3px solid #fff; }
+
+  #superBtn {
+    position: fixed; right: 25px; bottom: 175px;
+    width: 66px; height: 66px; border-radius: 50%;
+    background: rgba(255, 215, 0, 0.15);
+    border: 3px solid rgba(255, 215, 0, 0.4);
+    color: #ffd700; font-size: 10px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; z-index: 10; touch-action: none; line-height: 1.1;
+    pointer-events: auto;
+  }
+  #superBtn.ready { background: rgba(255, 215, 0, 0.4); animation: pulse 0.7s infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.7); transform: scale(1); }
+    50% { box-shadow: 0 0 36px rgba(255,215,0,1); transform: scale(1.08); }
+  }
+
+  /* Полоса бешеной ульты */
+  #frenzyBar {
+    position: fixed; bottom: 165px; left: 50%; transform: translateX(-50%);
+    width: 240px; height: 24px; border-radius: 12px;
+    background: rgba(255,0,0,0.3); border: 2px solid #ffd700;
+    display: none; align-items: center; justify-content: center;
+    color: #ffd700; font-weight: bold; font-size: 12px;
+    z-index: 15; text-shadow: 0 0 8px #ff0000;
+    animation: frenzyBar 0.3s infinite;
+  }
+  #frenzyBar.active { display: flex; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(10,5,25,0.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 20px; overflow-y: auto;
+  }
+  .overlay h1 {
+    font-size: 30px; margin: 0 0 6px;
+    background: linear-gradient(180deg, #ffd700, #ff8c00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .overlay h2 { font-size: 16px; margin: 14px 0 8px; color: #ffd700; }
+  .overlay p { color: #bbb; margin: 4px 0; font-size: 14px; }
+  .overlay button {
+    margin-top: 12px; padding: 12px 28px;
+    font-size: 16px; font-weight: bold;
+    background: linear-gradient(180deg, #ffd700, #ff8c00);
+    color: #2a1a4a; border: none; border-radius: 10px;
+    box-shadow: 0 4px 0 #b35900;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .overlay button:active { transform: translateY(2px); box-shadow: 0 2px 0 #b35900; }
+  .overlay button.secondary {
+    background: linear-gradient(180deg, #4fc3f7, #0288d1);
+    color: #fff; box-shadow: 0 4px 0 #01579b;
+  }
+  .overlay input {
+    padding: 12px 16px; font-size: 20px; text-align: center;
+    letter-spacing: 4px; font-weight: bold;
+    border: 2px solid #ffd700; border-radius: 10px;
+    background: rgba(0,0,0,0.5); color: #ffd700;
+    width: 220px; margin-top: 10px; text-transform: uppercase;
+  }
+  .overlay input:focus { outline: none; border-color: #fff; }
+
+  .char-grid, .weapon-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; max-width: 480px; margin-top: 8px;
+  }
+  .char-card, .weapon-card {
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px; padding: 8px 4px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .char-card:hover, .weapon-card:hover { background: rgba(255,255,255,0.12); }
+  .char-card.selected {
+    border-color: #ffd700; background: rgba(255,215,0,0.15);
+    box-shadow: 0 0 15px rgba(255,215,0,0.5);
+  }
+  .weapon-card.selected {
+    border-color: #ff6b6b; background: rgba(255,107,107,0.15);
+    box-shadow: 0 0 15px rgba(255,107,107,0.5);
+  }
+  .char-card .emoji, .weapon-card .emoji { font-size: 28px; }
+  .char-card .name, .weapon-card .name { font-size: 11px; font-weight: bold; margin-top: 3px; }
+  .char-card .desc, .weapon-card .desc { font-size: 9px; color: #aaa; margin-top: 2px; }
+
+  .hidden { display: none !important; }
+
+  #codeDisplay {
+    font-size: 38px; letter-spacing: 8px; color: #ffd700;
+    font-weight: bold; margin: 12px 0; padding: 10px 20px;
+    background: rgba(255,215,0,0.1);
+    border: 2px dashed #ffd700; border-radius: 10px;
+  }
+  #statusMsg { color: #4fc3f7; margin-top: 12px; font-size: 14px; min-height: 20px; }
+  #copyBtn {
+    font-size: 12px; padding: 6px 14px; margin-top: 6px;
+    background: rgba(255,215,0,0.2); color: #ffd700;
+    border: 1px solid #ffd700; border-radius: 6px; cursor: pointer;
+  }
+
+  .enemy-info {
+    font-size: 12px; color: #ff6b6b; margin-top: 6px;
+    padding: 4px 12px; background: rgba(255,107,107,0.1);
+    border-radius: 8px; border: 1px solid rgba(255,107,107,0.3);
+  }
+
+  #vsBox {
+    display: flex; gap: 14px; align-items: center; justify-content: center;
+    margin: 10px 0;
+  }
+  .vs-card {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.2);
+    min-width: 100px;
+  }
+  .vs-card.me { border-color: #4fc3f7; }
+  .vs-card.enemy { border-color: #ff6b6b; }
+  .vs-card .emoji { font-size: 34px; }
+  .vs-card .name { font-size: 12px; font-weight: bold; margin-top: 2px; }
+  .vs-card .weapon { font-size: 10px; color: #aaa; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="stat">❤️ <span class="val" id="hp">100</span></div>
+  <div class="stat">💀 <span class="val" id="kills">0</span></div>
+  <div class="sep">|</div>
+  <div class="stat">🎯 <span class="val" id="weaponName">P90</span></div>
+  <div class="sep">|</div>
+  <div class="stat">👤 <span class="me-val" id="charName">Шелли</span></div>
+  <div class="sep">vs</div>
+  <div class="stat">👤 <span class="enemy-val" id="enemyCharName">???</span></div>
+</div>
+
+<div id="superBar"><div id="superFill"></div></div>
+<div id="frenzyBar">🔥 БЕШЕНЫЙ РЕЖИМ 🔥 <span id="frenzyTime">8.0</span>с</div>
+
+<canvas id="game"></canvas>
+
+<div id="joyL"><div id="stickL"></div></div>
+<div id="joyR"><div id="stickR"></div></div>
+<div id="superBtn">СУПЕР<br>⭐</div>
+
+<div id="menuScreen" class="overlay">
+  <h1>⚔️ BRAWL ARENA v4 ⚔️</h1>
+  <p>Онлайн-сражения 1 на 1</p>
+  <h2>Выбери бойца</h2>
+  <div class="char-grid" id="charGrid"></div>
+  <h2>Выбери оружие</h2>
+  <div class="weapon-grid" id="weaponGrid"></div>
+  <button onclick="goToMultiplayer()">ДАЛЕЕ →</button>
+</div>
+
+<div id="modeScreen" class="overlay hidden">
+  <h1>РЕЖИМ ИГРЫ</h1>
+  <button onclick="createRoom()">🌐 СОЗДАТЬ КОМНАТУ</button>
+  <button class="secondary" onclick="showJoinScreen()">🔗 ПОДКЛЮЧИТЬСЯ</button>
+  <button class="secondary" onclick="startBotGame()">🤖 ПРОТИВ БОТА</button>
+  <button class="secondary" onclick="backToMenu()">← НАЗАД</button>
+</div>
+
+<div id="createScreen" class="overlay hidden">
+  <h1>КОМНАТА СОЗДАНА</h1>
+  <p>Передай этот код другу:</p>
+  <div id="codeDisplay">----</div>
+  <button id="copyBtn" onclick="copyCode()">📋 Скопировать код</button>
+  <div id="statusMsg">Ожидание второго игрока...</div>
+  <div class="enemy-info" id="enemyPreview" style="display:none;"></div>
+  <button class="secondary" onclick="backToMode()">← НАЗАД</button>
+</div>
+
+<div id="joinScreen" class="overlay hidden">
+  <h1>ПОДКЛЮЧЕНИЕ</h1>
+  <p>Введи код комнаты друга:</p>
+  <input id="codeInput" maxlength="6" placeholder="ABC123" autocomplete="off">
+  <button onclick="joinRoom()">ВОЙТИ В БОЙ</button>
+  <div id="joinStatus" style="color:#ff6b6b; margin-top:10px; min-height:20px;"></div>
+  <button class="secondary" onclick="backToMode()">← НАЗАД</button>
+</div>
+
+<div id="endScreen" class="overlay hidden">
+  <h1 id="endTitle">ПОБЕДА!</h1>
+  <p id="endStats"></p>
+  <button onclick="location.reload()">ИГРАТЬ СНОВА</button>
+</div>
+
+<div id="loadScreen" class="overlay hidden">
+  <h1>БОЙ НАЧИНАЕТСЯ</h1>
+  <div id="vsBox">
+    <div class="vs-card me">
+      <div class="emoji" id="vsMeEmoji">👧</div>
+      <div class="name" id="vsMeName">Шелли</div>
+      <div class="weapon" id="vsMeWeapon">🔫 P90</div>
+    </div>
+    <div style="font-size:26px; font-weight:bold; color:#ffd700;">VS</div>
+    <div class="vs-card enemy">
+      <div class="emoji" id="vsEnemyEmoji">❓</div>
+      <div class="name" id="vsEnemyName">???</div>
+      <div class="weapon" id="vsEnemyWeapon">❓</div>
+    </div>
+  </div>
+  <p id="loadStatus">3...</p>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+// ================================================================
+// КОНФИГ
+// ================================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 800, H = 600;
+
+function fitCanvas() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H, 1.5);
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+function resize() {
+  const isMobile = window.innerWidth < 700;
+  W = isMobile ? 500 : 800;
+  H = isMobile ? 700 : 600;
+  fitCanvas();
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+const CHARACTERS = {
+  shelly:  { name: 'Шелли',    emoji: '👧', color: '#3498db', hp: 120, speed: 4.0, desc: 'Баланс' },
+  colt:    { name: 'Кольт',    emoji: '🤠', color: '#e67e22', hp: 90,  speed: 4.6, desc: 'Быстрый' },
+  primo:   { name: 'Эль Примо', emoji: '💪', color: '#27ae60', hp: 180, speed: 3.4, desc: 'Танк' },
+  spike:   { name: 'Спайк',    emoji: '🌵', color: '#2ecc71', hp: 80,  speed: 4.2, desc: 'Хрупкий' },
+  crow:    { name: 'Ворон',    emoji: '🐦', color: '#9b59b6', hp: 85,  speed: 4.8, desc: 'Уклонение' },
+  bull:    { name: 'Булл',     emoji: '🐮', color: '#c0392b', hp: 200, speed: 3.2, desc: 'Супер-танк' }
+};
+
+const WEAPONS = {
+  p90:      { name: 'P90',      emoji: '🔫', dmg: 6,  speed: 13, cd: 5,  spread: 0.12, bullets: 1, life: 45, color: '#4fc3f7', desc: 'Скорострел' },
+  shotgun:  { name: 'Дробовик', emoji: '💥', dmg: 8,  speed: 11, cd: 38, spread: 0.35, bullets: 5, life: 22, color: '#f39c12', desc: 'Близко' },
+  pistol:   { name: 'Пистолет', emoji: '🎯', dmg: 18, speed: 15, cd: 22, spread: 0.03, bullets: 1, life: 60, color: '#e74c3c', desc: 'Точный' }
+};
+
+let selectedChar = 'shelly';
+let selectedWeapon = 'p90';
+
+function renderCharacterGrid() {
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = '';
+  Object.entries(CHARACTERS).forEach(([key, c]) => {
+    const card = document.createElement('div');
+    card.className = 'char-card' + (key === selectedChar ? ' selected' : '');
+    card.innerHTML = `
+      <div class="emoji">${c.emoji}</div>
+      <div class="name">${c.name}</div>
+      <div class="desc">${c.desc}<br>❤${c.hp}</div>
+    `;
+    card.onclick = () => { selectedChar = key; renderCharacterGrid(); };
+    grid.appendChild(card);
+  });
+}
+function renderWeaponGrid() {
+  const grid = document.getElementById('weaponGrid');
+  grid.innerHTML = '';
+  Object.entries(WEAPONS).forEach(([key, w]) => {
+    const card = document.createElement('div');
+    card.className = 'weapon-card' + (selectedWeapon === key ? ' selected' : '');
+    card.innerHTML = `
+      <div class="emoji">${w.emoji}</div>
+      <div class="name">${w.name}</div>
+      <div class="desc">${w.desc}<br>⚔${w.dmg}</div>
+    `;
+    card.onclick = () => { selectedWeapon = key; renderWeaponGrid(); };
+    grid.appendChild(card);
+  });
+}
+renderCharacterGrid();
+renderWeaponGrid();
+
+// ================================================================
+// ЭКРАНЫ
+// ================================================================
+function show(id) {
+  ['menuScreen','modeScreen','createScreen','joinScreen','endScreen','loadScreen'].forEach(x => {
+    document.getElementById(x).classList.toggle('hidden', x !== id);
+  });
+  const inGame = (id === null);
+  document.getElementById('joyL').classList.toggle('hidden', !inGame);
+  document.getElementById('joyR').classList.toggle('hidden', !inGame);
+  document.getElementById('superBtn').classList.toggle('hidden', !inGame);
+  document.getElementById('hud').classList.toggle('hidden', !inGame);
+  document.getElementById('superBar').classList.toggle('hidden', !inGame);
+  if (!inGame) document.getElementById('frenzyBar').classList.remove('active');
+}
+show('menuScreen');
+
+function goToMultiplayer() { show('modeScreen'); }
+function backToMode()      { show('modeScreen'); }
+function backToMenu()      { show('menuScreen'); }
+function showJoinScreen()  { show('joinScreen'); }
+
+// ================================================================
+// СЕТЬ
+// ================================================================
+let peer = null;
+let conn = null;
+let isHost = false;
+let myRoomCode = '';
+let networkRole = null;
+
+let remoteChar = null;
+let remoteWeapon = null;
+
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function genCode() {
+  let s = '';
+  for (let i = 0; i < 6; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return s;
+}
+
+function createRoom() {
+  isHost = true;
+  networkRole = 'host';
+  myRoomCode = genCode();
+  document.getElementById('codeDisplay').textContent = myRoomCode;
+  document.getElementById('statusMsg').textContent = 'Ожидание второго игрока...';
+  document.getElementById('enemyPreview').style.display = 'none';
+  show('createScreen');
+
+  peer = new Peer('brawl-' + myRoomCode, { debug: 0 });
+  peer.on('open', id => console.log('Peer:', id));
+  peer.on('error', err => {
+    console.error(err);
+    document.getElementById('statusMsg').textContent = 'Ошибка сети: ' + err.type;
+  });
+  peer.on('connection', c => {
+    if (conn) return;
+    conn = c;
+    setupConnection();
+  });
+}
+
+function joinRoom() {
+  const code = document.getElementById('codeInput').value.trim().toUpperCase();
+  if (code.length < 4) {
+    document.getElementById('joinStatus').textContent = 'Введи код (минимум 4 символа)';
+    return;
+  }
+  networkRole = 'client';
+  document.getElementById('joinStatus').textContent = 'Подключение...';
+  peer = new Peer({ debug: 0 });
+  peer.on('open', () => {
+    conn = peer.connect('brawl-' + code, { reliable: true });
+    setupConnection();
+  });
+  peer.on('error', err => {
+    console.error(err);
+    document.getElementById('joinStatus').textContent =
+      'Ошибка: ' + (err.type === 'peer-unavailable' ? 'Комната не найдена' : err.type);
+  });
+}
+
+function setupConnection() {
+  conn.on('open', () => {
+    conn.send({ type: 'hello', char: selectedChar, weapon: selectedWeapon });
+  });
+  conn.on('data', data => handleNetworkData(data));
+  conn.on('close', () => endGame('Соперник отключился', true));
+  conn.on('error', err => console.error(err));
+}
+
+function handleNetworkData(data) {
+  if (data.type === 'hello') {
+    remoteChar = data.char;
+    remoteWeapon = data.weapon;
+    if (isHost) {
+      document.getElementById('enemyPreview').style.display = 'block';
+      document.getElementById('enemyPreview').innerHTML =
+        `Противник: ${CHARACTERS[remoteChar].emoji} <b>${CHARACTERS[remoteChar].name}</b> · ${WEAPONS[remoteWeapon].emoji} ${WEAPONS[remoteWeapon].name}`;
+      document.getElementById('statusMsg').textContent = 'Игрок найден! Начинаем...';
+      setTimeout(() => {
+        if (conn && conn.open) {
+          conn.send({
+            type: 'init',
+            W, H,
+            hostChar: selectedChar,
+            hostWeapon: selectedWeapon,
+            crates: genCrates()
+          });
+        }
+        startNetworkGame();
+      }, 1000);
+    } else {
+      document.getElementById('joinStatus').textContent = 'Подключено! Ждём старт...';
+    }
+  }
+  else if (data.type === 'init') {
+    remoteChar = data.hostChar;
+    remoteWeapon = data.hostWeapon;
+    W = data.W; H = data.H;
+    fitCanvas();
+    crates = data.crates.map(c => ({ ...c }));
+    player = makePlayer(selectedChar, selectedWeapon, W * 0.8, H * 0.5, 0);
+    remote = makePlayer(data.hostChar, data.hostWeapon, W * 0.2, H * 0.5, 1);
+    bullets = [];
+    particles = [];
+    kills = 0;
+    showVsScreenThenPlay(2000);
+  }
+  else if (data.type === 'state') {
+    if (!remote) return;
+    remoteTargetState = {
+      x: data.x, y: data.y, angle: data.angle,
+      hp: data.hp, alive: data.alive,
+      frenzy: data.frenzy
+    };
+  }
+  else if (data.type === 'shoot') {
+    spawnRemoteBullet(data);
+  }
+  else if (data.type === 'hit') {
+    takeDamage(data.dmg);
+  }
+  else if (data.type === 'end') {
+    endGame(data.win ? 'ПОРАЖЕНИЕ' : 'ПОБЕДА', false, data);
+  }
+}
+
+function showVsScreenThenPlay(delay) {
+  show('loadScreen');
+  document.getElementById('vsMeEmoji').textContent = CHARACTERS[selectedChar].emoji;
+  document.getElementById('vsMeName').textContent = CHARACTERS[selectedChar].name;
+  document.getElementById('vsMeWeapon').textContent = WEAPONS[selectedWeapon].emoji + ' ' + WEAPONS[selectedWeapon].name;
+  document.getElementById('vsEnemyEmoji').textContent = CHARACTERS[remoteChar].emoji;
+  document.getElementById('vsEnemyName').textContent = CHARACTERS[remoteChar].name;
+  document.getElementById('vsEnemyWeapon').textContent = WEAPONS[remoteWeapon].emoji + ' ' + WEAPONS[remoteWeapon].name;
+
+  let count = Math.ceil(delay / 1000);
+  document.getElementById('loadStatus').textContent = count + '...';
+  const interval = setInterval(() => {
+    count--;
+    if (count > 0) document.getElementById('loadStatus').textContent = count + '...';
+    else {
+      clearInterval(interval);
+      document.getElementById('loadStatus').textContent = 'БОЙ!';
+    }
+  }, 1000);
+
+  setTimeout(() => {
+    show(null);
+    gameRunning = true;
+    gameStartTime = performance.now();
+    updateHUD();
+  }, delay);
+}
+
+function startNetworkGame() {
+  crates = genCrates();
+  player = makePlayer(selectedChar, selectedWeapon, W * 0.2, H * 0.5, 0);
+  remote = makePlayer(remoteChar, remoteWeapon, W * 0.8, H * 0.5, 1);
+  bullets = [];
+  particles = [];
+  kills = 0;
+  gameRunning = false;
+  showVsScreenThenPlay(2000);
+}
+
+// ================================================================
+// СОСТОЯНИЕ
+// ================================================================
+let player = null;
+let remote = null;
+let bullets = [];
+let particles = [];
+let crates = [];
+let gameRunning = false;
+let gameStartTime = 0;
+let lastSentTime = 0;
+let remoteTargetState = null;
+let kills = 0;
+
+function makePlayer(charKey, weaponKey, x, y, team) {
+  const c = CHARACTERS[charKey] || CHARACTERS.shelly;
+  return {
+    x, y, r: 18,
+    speed: c.speed,
+    baseSpeed: c.speed,
+    maxHp: c.hp, hp: c.hp,
+    angle: team === 0 ? 0 : Math.PI,
+    char: charKey,
+    weapon: weaponKey,
+    color: c.color,
+    emoji: c.emoji,
+    team,
+    shootCd: 0,
+    superCharge: 0,
+    superReady: false,
+    frenzyTime: 0,           // сколько осталось бешеного режима
+    hitFlash: 0,
+    alive: true,
+    respawnTimer: 0
+  };
+}
+
+function genCrates() {
+  const list = [];
+  const positions = [
+    [W*0.25, H*0.25], [W*0.75, H*0.25],
+    [W*0.25, H*0.75], [W*0.75, H*0.75],
+    [W*0.5, H*0.5],
+    [W*0.5, H*0.2], [W*0.5, H*0.8],
+    [W*0.2, H*0.5], [W*0.8, H*0.5]
+  ];
+  positions.forEach(([x, y]) => {
+    list.push({ x: x - 25, y: y - 25, w: 50, h: 50, hp: 100, maxHp: 100, destroyed: false });
+  });
+  return list;
+}
+
+function updateHUD() {
+  if (!player) return;
+  document.getElementById('hp').textContent = Math.max(0, Math.round(player.hp));
+  document.getElementById('kills').textContent = kills;
+  document.getElementById('weaponName').textContent = WEAPONS[player.weapon]?.name || '—';
+  document.getElementById('charName').textContent = CHARACTERS[player.char]?.name || '—';
+  if (remote) {
+    document.getElementById('enemyCharName').textContent = CHARACTERS[remote.char]?.name || '—';
+  }
+}
+
+// ================================================================
+// ВВОД — ДВА НЕЗАВИСИМЫХ СТИКА
+// ================================================================
+const keys = {};
+let moveVec = { x: 0, y: 0 };
+let aimVec = { x: 0, y: 0 };
+let firing = false;
+let moveJoyActive = false;
+let aimJoyActive = false;
+
+document.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+  if (e.key === ' ') fireSuper();
+  // Q — стрельба мышью на ПК
+  if (e.key.toLowerCase() === 'q') firing = true;
+});
+document.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+  if (e.key.toLowerCase() === 'q') firing = false;
+});
+
+// Универсальная функция стика
+function makeStick(joyId, stickId, onMove, onEnd, side) {
+  const joy = document.getElementById(joyId);
+  const stick = document.getElementById(stickId);
+  let active = false, touchId = null;
+  let center = { x: 0, y: 0 };
+  const maxDist = 45;
+
+  function getPos(e) {
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX, y: t.clientY };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    active = true;
+    if (side === 'move') moveJoyActive = true;
+    else aimJoyActive = true;
+    const r = joy.getBoundingClientRect();
+    center = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    move(e);
+  }
+
+  function move(e) {
+    if (!active) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const p = getPos(e);
+    let dx = p.x - center.x;
+    let dy = p.y - center.y;
+    const d = Math.hypot(dx, dy);
+    if (d > maxDist) { dx = dx / d * maxDist; dy = dy / d * maxDist; }
+    stick.style.left = `calc(50% + ${dx}px)`;
+    stick.style.top = `calc(50% + ${dy}px)`;
+    onMove(dx / maxDist, dy / maxDist);
+  }
+
+  function end(e) {
+    if (!active) return;
+    e.preventDefault();
+    e.stopPropagation();
+    active = false;
+    if (side === 'move') moveJoyActive = false;
+    else aimJoyActive = false;
+    stick.style.left = '50%';
+    stick.style.top = '50%';
+    onEnd();
+  }
+
+  // Touch events с изоляцией
+  joy.addEventListener('touchstart', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (touchId === null) {
+      touchId = e.changedTouches[0].identifier;
+      start(e);
+    }
+  }, { passive: false });
+
+  joy.addEventListener('touchmove', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    for (let t of e.changedTouches) {
+      if (t.identifier === touchId) {
+        const p = { x: t.clientX, y: t.clientY };
+        let dx = p.x - center.x;
+        let dy = p.y - center.y;
+        const d = Math.hypot(dx, dy);
+        if (d > maxDist) { dx = dx / d * maxDist; dy = dy / d * maxDist; }
+        stick.style.left = `calc(50% + ${dx}px)`;
+        stick.style.top = `calc(50% + ${dy}px)`;
+        onMove(dx / maxDist, dy / maxDist);
+      }
+    }
+  }, { passive: false });
+
+  joy.addEventListener('touchend', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    for (let t of e.changedTouches) {
+      if (t.identifier === touchId) {
+        touchId = null;
+        active = false;
+        if (side === 'move') moveJoyActive = false;
+        else aimJoyActive = false;
+        stick.style.left = '50%';
+        stick.style.top = '50%';
+        onEnd();
+      }
+    }
+  }, { passive: false });
+
+  joy.addEventListener('touchcancel', e => {
+    touchId = null;
+    active = false;
+    if (side === 'move') moveJoyActive = false;
+    else aimJoyActive = false;
+    stick.style.left = '50%';
+    stick.style.top = '50%';
+    onEnd();
+  }, { passive: false });
+
+  // Мышка для ПК
+  joy.addEventListener('mousedown', e => { e.preventDefault(); start(e); });
+  window.addEventListener('mousemove', e => { if (active) move(e); });
+  window.addEventListener('mouseup', e => { if (active) end(e); });
+}
+
+makeStick('joyL', 'stickL',
+  (x, y) => { moveVec.x = x; moveVec.y = y; },
+  () => { moveVec.x = 0; moveVec.y = 0; },
+  'move'
+);
+
+makeStick('joyR', 'stickR',
+  (x, y) => {
+    aimVec.x = x; aimVec.y = y;
+    if (Math.hypot(x, y) > 0.25) firing = true;
+  },
+  () => { firing = false; },
+  'aim'
+);
+
+const superBtn = document.getElementById('superBtn');
+superBtn.addEventListener('click', fireSuper);
+superBtn.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); fireSuper(); }, { passive: false });
+
+// ================================================================
+// СУПЕР
+// ================================================================
+function fireSuper() {
+  if (!gameRunning || !player || !player.superReady || !player.alive) return;
+  if (player.frenzyTime > 0) return; // уже бешеный
+  player.superReady = false;
+  player.superCharge = 0;
+  player.frenzyTime = 8 * 60; // 8 секунд * 60 fps
+  updateSuperUI();
+
+  // Визуальный взрыв
+  spawnParticles(player.x, player.y, '#ffd700', 40, 10);
+  spawnParticles(player.x, player.y, '#ff0000', 30, 8);
+
+  // Звук-эффект можно добавить позже
+}
+
+function updateSuperUI() {
+  if (!player) return;
+  superBtn.classList.toggle('ready', player.superReady && player.frenzyTime <= 0);
+  const bar = document.getElementById('superFill');
+  if (bar) bar.style.width = player.superCharge + '%';
+  const superBar = document.getElementById('superBar');
+  if (superBar) superBar.classList.toggle('frenzy', player.frenzyTime > 0);
+  const frenzyBar = document.getElementById('frenzyBar');
+  if (frenzyBar) frenzyBar.classList.toggle('active', player.frenzyTime > 0);
+}
+
+function addSuperCharge(amount) {
+  if (!player) return;
+  if (player.frenzyTime > 0) return; // не копим во время бешеного
+  player.superCharge = Math.min(100, player.superCharge + amount);
+  if (player.superCharge >= 100 && !player.superReady) {
+    player.superReady = true;
+  }
+  updateSuperUI();
+}
+
+// ================================================================
+// СТРЕЛЬБА (теперь всегда можно двигаться)
+// ================================================================
+function shoot() {
+  if (!player.alive) return;
+  const w = WEAPONS[player.weapon];
+  if (player.shootCd > 0) return;
+
+  // Базовый кулдаун
+  let cd = w.cd;
+  // В бешеном режиме — стреляет в 3 раза быстрее!
+  if (player.frenzyTime > 0) cd = Math.max(1, w.cd * 0.3);
+  player.shootCd = cd;
+
+  // Направление: aimVec если активен, иначе — к ближайшему врагу, иначе — вперёд
+  let baseAngle;
+  const aMag = Math.hypot(aimVec.x, aimVec.y);
+  if (aMag > 0.25) {
+    baseAngle = Math.atan2(aimVec.y, aimVec.x);
+  } else if (remote && remote.alive) {
+    // Автоприцел на врага
+    baseAngle = Math.atan2(remote.y - player.y, remote.x - player.x);
+  } else if (Math.hypot(moveVec.x, moveVec.y) > 0.2) {
+    baseAngle = Math.atan2(moveVec.y, moveVec.x);
+  } else {
+    baseAngle = player.angle;
+  }
+  player.angle = baseAngle;
+
+  // В бешеном — двойной выстрел (стреляет 2 пули подряд)
+  const shotsPerFire = player.frenzyTime > 0 ? 2 : 1;
+  for (let s = 0; s < shotsPerFire; s++) {
+    for (let i = 0; i < w.bullets; i++) {
+      const spread = w.bullets > 1
+        ? (i / (w.bullets - 1) - 0.5) * w.spread * 2
+        : (Math.random() - 0.5) * w.spread;
+      const a = baseAngle + spread;
+      const bulletColor = player.frenzyTime > 0 ? '#ffd700' : w.color;
+      const bulletDmg = player.frenzyTime > 0 ? w.dmg * 1.5 : w.dmg;
+      const bullet = {
+        x: player.x + Math.cos(a) * (player.r + 4),
+        y: player.y + Math.sin(a) * (player.r + 4),
+        vx: Math.cos(a) * w.speed * (player.frenzyTime > 0 ? 1.3 : 1),
+        vy: Math.sin(a) * w.speed * (player.frenzyTime > 0 ? 1.3 : 1),
+        r: player.frenzyTime > 0 ? 5 : 4,
+        life: w.life,
+        dmg: bulletDmg,
+        owner: 0,
+        color: bulletColor,
+        frenzy: player.frenzyTime > 0
+      };
+      bullets.push(bullet);
+
+      // Синхронизация
+      if (conn && conn.open) {
+        conn.send({
+          type: 'shoot',
+          x: bullet.x, y: bullet.y,
+          vx: bullet.vx, vy: bullet.vy,
+          dmg: bullet.dmg,
+          weapon: player.weapon,
+          frenzy: bullet.frenzy
+        });
+      }
+    }
+  }
+
+  // Частицы от выстрела
+  spawnParticles(
+    player.x + Math.cos(baseAngle) * 22,
+    player.y + Math.sin(baseAngle) * 22,
+    player.frenzyTime > 0 ? '#ffd700' : w.color,
+    player.frenzyTime > 0 ? 6 : 3,
+    4
+  );
+}
+
+function spawnRemoteBullet(data) {
+  bullets.push({
+    x: data.x, y: data.y,
+    vx: data.vx, vy: data.vy,
+    r: data.frenzy ? 5 : 4,
+    life: 45,
+    dmg: data.dmg,
+    owner: 1,
+    color: data.frenzy ? '#ffd700' : (WEAPONS[data.weapon]?.color || '#e74c3c'),
+    frenzy: data.frenzy
+  });
+}
+
+function takeDamage(dmg) {
+  if (!player.alive) return;
+  player.hp -= dmg;
+  player.hitFlash = 6;
+  spawnParticles(player.x, player.y, '#ff4444', 8, 5);
+  updateHUD();
+  if (player.hp <= 0) {
+    player.hp = 0;
+    player.alive = false;
+    player.respawnTimer = 120;
+    player.frenzyTime = 0;
+    kills--;
+    updateHUD();
+    updateSuperUI();
+  }
+}
+
+// ================================================================
+// ОБНОВЛЕНИЕ
+// ================================================================
+function update(dt) {
+  if (!gameRunning || !player || !remote) return;
+
+  // === Бешеный режим — таймер ===
+  if (player.frenzyTime > 0) {
+    player.frenzyTime -= dt;
+    document.getElementById('frenzyTime').textContent = (player.frenzyTime / 60).toFixed(1);
+    // Ускорение движения
+    player.speed = player.baseSpeed * 1.25;
+    if (player.frenzyTime <= 0) {
+      player.frenzyTime = 0;
+      player.speed = player.baseSpeed;
+      updateSuperUI();
+    }
+  }
+
+  // === Игрок ===
+  if (player.alive) {
+    let mx = moveVec.x, my = moveVec.y;
+    if (keys['w'] || keys['arrowup'])    my -= 1;
+    if (keys['s'] || keys['arrowdown'])  my += 1;
+    if (keys['a'] || keys['arrowleft'])  mx -= 1;
+    if (keys['d'] || keys['arrowright']) mx += 1;
+    const mag = Math.hypot(mx, my);
+    if (mag > 1) { mx /= mag; my /= mag; }
+    if (mag > 0.05) {
+      player.x += mx * player.speed * dt;
+      player.y += my * player.speed * dt;
+    }
+    player.x = Math.max(player.r, Math.min(W - player.r, player.x));
+    player.y = Math.max(player.r, Math.min(H - player.r, player.y));
+    resolveCrateCollision(player);
+
+    // Поворот
+    const aMag = Math.hypot(aimVec.x, aimVec.y);
+    if (aMag > 0.25) player.angle = Math.atan2(aimVec.y, aimVec.x);
+
+    // === СТРЕЛЬБА (независимо от движения!) ===
+    // Условия для стрельбы:
+    // 1. Правый джойстик активен И направление задано (firing)
+    // 2. ИЛИ включён бешеный режим (автоматическая стрельба)
+    const autoFire = player.frenzyTime > 0;
+    if (firing || autoFire) {
+      player.shootCd -= dt;
+      shoot();
+    } else if (player.shootCd > 0) {
+      player.shootCd -= dt;
+    }
+  } else {
+    // Респаун
+    player.respawnTimer -= dt;
+    if (player.respawnTimer <= 0) {
+      player.alive = true;
+      player.hp = player.maxHp;
+      let sx, sy, tries = 0;
+      do {
+        sx = Math.random() * (W - 200) + 100;
+        sy = Math.random() * (H - 200) + 100;
+        tries++;
+      } while (remote.alive && dist({x: sx, y: sy}, remote) < 250 && tries < 20);
+      player.x = sx; player.y = sy;
+      player.frenzyTime = 0;
+      player.speed = player.baseSpeed;
+      updateHUD();
+    }
+  }
+
+  // === Бот ===
+  if (networkRole === 'bot' && remote.alive && player.alive) {
+    updateBot(dt);
+  }
+
+  // === Интерполяция удалённого ===
+  if (remoteTargetState && (networkRole === 'host' || networkRole === 'client')) {
+    remote.x += (remoteTargetState.x - remote.x) * 0.35;
+    remote.y += (remoteTargetState.y - remote.y) * 0.35;
+    remote.angle += (remoteTargetState.angle - remote.angle) * 0.4;
+    remote.hp = remoteTargetState.hp;
+    const wasAlive = remote.alive;
+    remote.alive = remoteTargetState.alive;
+    // Синхронизация бешеного режима у врага
+    remote.frenzyTime = (remoteTargetState.frenzy || 0);
+    if (wasAlive && !remote.alive) {
+      kills++;
+      addSuperCharge(30);
+      updateHUD();
+      checkWin();
+    }
+  }
+
+  // === Отправка состояния ===
+  const now = performance.now();
+  if ((networkRole === 'host' || networkRole === 'client') && conn && conn.open && now - lastSentTime > 50) {
+    lastSentTime = now;
+    conn.send({
+      type: 'state',
+      x: player.x, y: player.y, angle: player.angle,
+      hp: player.hp, alive: player.alive,
+      frenzy: player.frenzyTime
+    });
+  }
+
+  // === Пули ===
+  bullets = bullets.filter(b => {
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
+    if (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) return false;
+    if (b.life <= 0) return false;
+
+    // Ящики
+    for (const c of crates) {
+      if (c.destroyed) continue;
+      if (b.x > c.x && b.x < c.x + c.w && b.y > c.y && b.y < c.y + c.h) {
+        c.hp -= b.dmg;
+        spawnParticles(b.x, b.y, '#a0522d', 5, 3);
+        if (c.hp <= 0) {
+          c.destroyed = true;
+          spawnParticles(c.x + c.w/2, c.y + c.h/2, '#8b4513', 20, 6);
+        }
+        return false;
+      }
+    }
+
+    // Моя пуля → во врага
+    if (b.owner === 0 && remote.alive) {
+      if (dist(b, remote) < b.r + remote.r) {
+        remote.hp -= b.dmg;
+        remote.hitFlash = 6;
+        spawnParticles(b.x, b.y, '#ff6b6b', 6, 4);
+        // +2 заряда супера за попадание
+        addSuperCharge(2);
+
+        if (remote.hp <= 0 && remote.alive) {
+          remote.alive = false;
+          kills++;
+          addSuperCharge(30);
+          updateHUD();
+          if (networkRole === 'bot') {
+            setTimeout(() => {
+              if (!gameRunning || !remote) return;
+              remote.alive = true;
+              remote.hp = remote.maxHp;
+              let sx, sy, tries = 0;
+              do {
+                sx = Math.random() * (W - 200) + 100;
+                sy = Math.random() * (H - 200) + 100;
+                tries++;
+              } while (dist({x: sx, y: sy}, player) < 250 && tries < 20);
+              remote.x = sx; remote.y = sy;
+            }, 2000);
+          }
+          checkWin();
+        }
+        if (networkRole === 'client' && conn && conn.open) {
+          conn.send({ type: 'hit', dmg: b.dmg });
+        }
+        return false;
+      }
+    }
+    // Чужая пуля → в меня
+    if (b.owner === 1 && player.alive) {
+      if (dist(b, player) < b.r + player.r) {
+        takeDamage(b.dmg);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  particles = particles.filter(p => {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.94; p.vy *= 0.94;
+    p.life -= dt;
+    return p.life > 0;
+  });
+  if (player.hitFlash > 0) player.hitFlash -= dt;
+  if (remote.hitFlash > 0) remote.hitFlash -= dt;
+}
+
+function updateBot(dt) {
+  const d = dist(remote, player);
+  const angle = Math.atan2(player.y - remote.y, player.x - remote.x);
+  remote.angle = angle;
+
+  // Бот тоже умеет бешеный режим
+  if (remote.frenzyTime > 0) {
+    remote.frenzyTime -= dt;
+    remote.speed = remote.baseSpeed * 1.25;
+    if (remote.frenzyTime <= 0) {
+      remote.frenzyTime = 0;
+      remote.speed = remote.baseSpeed;
+    }
+  }
+
+  // Бот может активировать супер, если готов и игрок близко
+  if (remote.superCharge >= 100 && d < 300 && remote.frenzyTime <= 0) {
+    remote.superReady = true;
+    if (Math.random() < 0.02) { // шанс активации
+      remote.superReady = false;
+      remote.superCharge = 0;
+      remote.frenzyTime = 6 * 60;
+      spawnParticles(remote.x, remote.y, '#ffd700', 30, 8);
+    }
+  }
+  // Копим заряд попаданий у бота
+  if (remote.frenzyTime <= 0) {
+    remote.superCharge = Math.min(100, (remote.superCharge || 0) + 0.15);
+  }
+
+  let tx = player.x, ty = player.y;
+  if (d < 180) {
+    tx = remote.x - (player.x - remote.x);
+    ty = remote.y - (player.y - remote.y);
+  }
+  const mx = tx - remote.x, my = ty - remote.y;
+  const mmag = Math.hypot(mx, my);
+  if (mmag > 20) {
+    let step = remote.speed * 0.75 * dt;
+    let nx = remote.x + (mx / mmag) * step;
+    let ny = remote.y + (my / mmag) * step;
+    for (const c of crates) {
+      if (c.destroyed) continue;
+      if (nx > c.x - remote.r && nx < c.x + c.w + remote.r &&
+          ny > c.y - remote.r && ny < c.y + c.h + remote.r) {
+        nx = remote.x + Math.cos(angle + Math.PI/2) * step;
+        ny = remote.y + Math.sin(angle + Math.PI/2) * step;
+        break;
+      }
+    }
+    remote.x = Math.max(remote.r, Math.min(W - remote.r, nx));
+    remote.y = Math.max(remote.r, Math.min(H - remote.r, ny));
+  }
+
+  remote.shootCd -= dt;
+  const cdMult = remote.frenzyTime > 0 ? 0.3 : 1;
+  if (remote.shootCd <= 0 && d < 350) {
+    const w = WEAPONS[remote.weapon];
+    remote.shootCd = (w.cd + 6) * cdMult;
+    const shotsPerFire = remote.frenzyTime > 0 ? 2 : 1;
+    for (let s = 0; s < shotsPerFire; s++) {
+      for (let i = 0; i < w.bullets; i++) {
+        const spread = w.bullets > 1
+          ? (i / (w.bullets - 1) - 0.5) * w.spread * 2
+          : (Math.random() - 0.5) * w.spread;
+        const a = angle + spread;
+        bullets.push({
+          x: remote.x + Math.cos(a) * (remote.r + 4),
+          y: remote.y + Math.sin(a) * (remote.r + 4),
+          vx: Math.cos(a) * w.speed * (remote.frenzyTime > 0 ? 1.3 : 1),
+          vy: Math.sin(a) * w.speed * (remote.frenzyTime > 0 ? 1.3 : 1),
+          r: remote.frenzyTime > 0 ? 5 : 4,
+          life: w.life,
+          dmg: remote.frenzyTime > 0 ? w.dmg * 1.5 : w.dmg,
+          owner: 1,
+          color: remote.frenzyTime > 0 ? '#ffd700' : w.color,
+          frenzy: remote.frenzyTime > 0
+        });
+      }
+    }
+  }
+}
+
+function resolveCrateCollision(e) {
+  for (const c of crates) {
+    if (c.destroyed) continue;
+    const nx = Math.max(c.x, Math.min(e.x, c.x + c.w));
+    const ny = Math.max(c.y, Math.min(e.y, c.y + c.h));
+    const ddx = e.x - nx, ddy = e.y - ny;
+    const d = Math.hypot(ddx, ddy);
+    if (d < e.r) {
+      if (d > 0) {
+        e.x = nx + (ddx / d) * e.r;
+        e.y = ny + (ddy / d) * e.r;
+      } else {
+        const left   = Math.abs(e.x - c.x);
+        const right  = Math.abs(e.x - (c.x + c.w));
+        const top    = Math.abs(e.y - c.y);
+        const bottom = Math.abs(e.y - (c.y + c.h));
+        const m = Math.min(left, right, top, bottom);
+        if (m === left)   e.x = c.x - e.r;
+        if (m === right)  e.x = c.x + c.w + e.r;
+        if (m === top)    e.y = c.y - e.r;
+        if (m === bottom) e.y = c.y + c.h + e.r;
+      }
+    }
+  }
+}
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+function spawnParticles(x, y, color, count = 8, speedMax = 5) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * speedMax + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 25, maxLife: 25, color, size: 3 + Math.random() * 3
+    });
+  }
+}
+
+function checkWin() {
+  if (kills >= 5) endGame('ПОБЕДА!', false);
+}
+
+function endGame(title, isDisconnect, extra) {
+  gameRunning = false;
+  document.getElementById('endTitle').textContent = title;
+  document.getElementById('endStats').textContent = `Убийств: ${Math.max(0, kills)} / 5`;
+  show('endScreen');
+  if (conn && conn.open && !isDisconnect) {
+    try { conn.send({ type: 'end', win: true }); } catch(e) {}
+  }
+}
+
+// ================================================================
+// ОТРИСОВКА
+// ================================================================
+function lighten(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  let r = ((n >> 16) & 0xff) + 60; if (r > 255) r = 255;
+  let g = ((n >> 8) & 0xff) + 60; if (g > 255) g = 255;
+  let b = (n & 0xff) + 60; if (b > 255) b = 255;
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawArena() {
+  const g = ctx.createRadialGradient(W/2, H/2, 100, W/2, H/2, Math.max(W,H));
+  g.addColorStop(0, '#2a1a4a');
+  g.addColorStop(1, '#0f0a1e');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  ctx.strokeStyle = 'rgba(255,215,0,0.3)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, W-4, H-4);
+}
+
+function drawCrate(c) {
+  if (c.destroyed) {
+    ctx.fillStyle = 'rgba(60,30,10,0.4)';
+    ctx.fillRect(c.x + 5, c.y + 5, c.w - 10, c.h - 10);
+    return;
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(c.x + 4, c.y + 6, c.w, c.h);
+  const g = ctx.createLinearGradient(c.x, c.y, c.x, c.y + c.h);
+  g.addColorStop(0, '#a0522d');
+  g.addColorStop(1, '#6b3410');
+  ctx.fillStyle = g;
+  ctx.fillRect(c.x, c.y, c.w, c.h);
+  ctx.strokeStyle = '#5a2a08';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(c.x, c.y, c.w, c.h);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(c.x + c.w/2, c.y);
+  ctx.lineTo(c.x + c.w/2, c.y + c.h);
+  ctx.moveTo(c.x, c.y + c.h/2);
+  ctx.lineTo(c.x + c.w, c.y + c.h/2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(c.x + 6, c.y + 6);
+  ctx.lineTo(c.x + c.w - 6, c.y + c.h - 6);
+  ctx.moveTo(c.x + c.w - 6, c.y + 6);
+  ctx.lineTo(c.x + 6, c.y + c.h - 6);
+  ctx.stroke();
+  if (c.hp < c.maxHp) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(c.x, c.y - 8, c.w, 5);
+    ctx.fillStyle = '#27ae60';
+    ctx.fillRect(c.x, c.y - 8, c.w * (c.hp / c.maxHp), 5);
+  }
+}
+
+function drawBrawler(p) {
+  if (!p) return;
+
+  // Аура бешеного режима
+  if (p.frenzyTime > 0 && p.alive) {
+    const pulse = 1 + Math.sin(performance.now() / 80) * 0.15;
+    const grad = ctx.createRadialGradient(p.x, p.y, p.r * 0.5, p.x, p.y, p.r * 3 * pulse);
+    grad.addColorStop(0, 'rgba(255,215,0,0.5)');
+    grad.addColorStop(0.5, 'rgba(255,100,0,0.25)');
+    grad.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 3 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (!p.alive) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + 8, p.r * 0.9, p.r * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('💀', p.x, p.y - 20);
+    return;
+  }
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(p.x, p.y + p.r * 0.8, p.r * 0.9, p.r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const c = CHARACTERS[p.char] || CHARACTERS.shelly;
+  const g = ctx.createRadialGradient(p.x - p.r*0.3, p.y - p.r*0.3, p.r*0.2, p.x, p.y, p.r);
+  g.addColorStop(0, lighten(c.color));
+  g.addColorStop(1, c.color);
+  ctx.fillStyle = p.hitFlash > 0 ? '#fff' : (p.frenzyTime > 0 ? '#ffd700' : g);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = p.frenzyTime > 0 ? '#ff0000' : (p.team === 0 ? '#4fc3f7' : '#ff6b6b');
+  ctx.lineWidth = p.frenzyTime > 0 ? 4 : 3;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(p.x + Math.cos(p.angle) * p.r * 0.4, p.y + Math.sin(p.angle) * p.r * 0.4);
+  ctx.lineTo(p.x + Math.cos(p.angle) * (p.r + 10), p.y + Math.sin(p.angle) * (p.r + 10));
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  ctx.font = `${p.r * 1.6}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(c.emoji, p.x, p.y + 1);
+  ctx.textBaseline = 'alphabetic';
+
+  // HP бар
+  const w = p.r * 2.4;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(p.x - w/2 - 1, p.y - p.r - 13, w + 2, 6);
+  ctx.fillStyle = p.hp / p.maxHp > 0.3 ? '#2ecc71' : '#e74c3c';
+  ctx.fillRect(p.x - w/2, p.y - p.r - 12, w * Math.max(0, p.hp / p.maxHp), 4);
+
+  // Имя
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = p.frenzyTime > 0 ? '#ffd700' : (p.team === 0 ? '#4fc3f7' : '#ff6b6b');
+  ctx.fillText(c.name + (p.frenzyTime > 0 ? ' 🔥' : ''), p.x, p.y - p.r - 18);
+}
+
+function drawOffscreenIndicator(p, color) {
+  if (!p) return;
+  const margin = 30;
+  if (p.x >= margin && p.x <= W - margin && p.y >= margin && p.y <= H - margin) return;
+  const cx = W / 2, cy = H / 2;
+  const ang = Math.atan2(p.y - cy, p.x - cx);
+  const rx = Math.min(W/2 - margin, Math.abs(Math.cos(ang)) > 0.01 ? Math.abs((W/2 - margin) / Math.cos(ang)) : 9999);
+  const ry = Math.min(H/2 - margin, Math.abs(Math.sin(ang)) > 0.01 ? Math.abs((H/2 - margin) / Math.sin(ang)) : 9999);
+  const r = Math.min(rx, ry);
+  const ix = cx + Math.cos(ang) * r;
+  const iy = cy + Math.sin(ang) * r;
+  ctx.save();
+  ctx.translate(ix, iy);
+  ctx.rotate(ang);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(12, 0);
+  ctx.lineTo(-8, -8);
+  ctx.lineTo(-8, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  drawArena();
+
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  crates.forEach(drawCrate);
+
+  // Прицел
+  if (firing && player && player.alive) {
+    const mag = Math.hypot(aimVec.x, aimVec.y);
+    if (mag > 0.25) {
+      const ax = player.x + (aimVec.x / mag) * 90;
+      const ay = player.y + (aimVec.y / mag) * 90;
+      ctx.strokeStyle = player.frenzyTime > 0 ? 'rgba(255,215,0,0.9)' : 'rgba(255,100,50,0.5)';
+      ctx.lineWidth = player.frenzyTime > 0 ? 3 : 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(ax, ay, player.frenzyTime > 0 ? 12 : 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  bullets.forEach(b => {
+    if (b.super || b.frenzy) {
+      ctx.fillStyle = 'rgba(255,215,0,0.35)';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd700';
+    } else {
+      ctx.fillStyle = b.color || '#4fc3f7';
+    }
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r * 0.4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  if (remote) drawBrawler(remote);
+  if (player) drawBrawler(player);
+
+  if (remote && remote.alive) drawOffscreenIndicator(remote, '#ff6b6b');
+  if (player && player.alive) drawOffscreenIndicator(player, '#4fc3f7');
+
+  // Экранная вспышка при бешеном режиме
+  if (player && player.frenzyTime > 0) {
+    ctx.fillStyle = `rgba(255,200,0,${0.05 + Math.sin(performance.now()/100) * 0.03})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ================================================================
+// ЦИКЛ
+// ================================================================
+let lastTime = performance.now();
+function loop(now) {
+  const dt = Math.min((now - lastTime) / 16, 2);
+  lastTime = now;
+  if (gameRunning) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ================================================================
+// УТИЛИТЫ
+// ================================================================
+function copyCode() {
+  const code = document.getElementById('codeDisplay').textContent;
+  navigator.clipboard?.writeText(code);
+  document.getElementById('copyBtn').textContent = '✅ Скопировано!';
+  setTimeout(() => document.getElementById('copyBtn').textContent = '📋 Скопировать код', 1500);
+}
+
+// ==== БОТ ====
+function startBotGame() {
+  networkRole = 'bot';
+  const charKeys = Object.keys(CHARACTERS);
+  const weaponKeys = Object.keys(WEAPONS);
+  const availableChars = charKeys.filter(k => k !== selectedChar);
+  const availableWeapons = weaponKeys.filter(k => k !== selectedWeapon);
+
+  remoteChar = availableChars[Math.floor(Math.random() * availableChars.length)];
+  remoteWeapon = availableWeapons[Math.floor(Math.random() * availableWeapons.length)];
+
+  crates = genCrates();
+  player = makePlayer(selectedChar, selectedWeapon, W * 0.2, H * 0.5, 0);
+  remote = makePlayer(remoteChar, remoteWeapon, W * 0.8, H * 0.5, 1);
+  bullets = [];
+  particles = [];
+  kills = 0;
+  gameRunning = false;
+  showVsScreenThenPlay(2000);
+}
+</script>
+</body>
+</html>
