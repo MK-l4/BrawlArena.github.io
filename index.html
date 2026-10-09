@@ -141,9 +141,13 @@
   }
   .overlay input:focus { outline: none; border-color: #fff; }
 
-  .char-grid, .weapon-grid {
+  .char-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 8px; max-width: 480px; margin-top: 8px;
+  }
+  .weapon-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; max-width: 620px; margin-top: 8px;
   }
   .char-card, .weapon-card {
     background: rgba(255,255,255,0.06);
@@ -319,10 +323,12 @@ const CHARACTERS = {
   bull:    { name: 'Булл',     emoji: '🐮', color: '#c0392b', hp: 200, speed: 3.2, desc: 'Супер-танк' }
 };
 
+// === ДОБАВЛЕН MINIGUN ===
 const WEAPONS = {
-  p90:      { name: 'P90',      emoji: '🔫', dmg: 6,  speed: 13, cd: 5,  spread: 0.12, bullets: 1, life: 45, color: '#4fc3f7', desc: 'Скорострел' },
-  shotgun:  { name: 'Дробовик', emoji: '💥', dmg: 8,  speed: 11, cd: 38, spread: 0.35, bullets: 5, life: 22, color: '#f39c12', desc: 'Близко' },
-  pistol:   { name: 'Пистолет', emoji: '🎯', dmg: 18, speed: 15, cd: 22, spread: 0.03, bullets: 1, life: 60, color: '#e74c3c', desc: 'Точный' }
+  p90:      { name: 'P90',      emoji: '🔫', dmg: 6,   speed: 13, cd: 5,  spread: 0.12, bullets: 1, life: 45, color: '#4fc3f7', desc: 'Скорострел' },
+  shotgun:  { name: 'Дробовик', emoji: '💥', dmg: 8,   speed: 11, cd: 38, spread: 0.35, bullets: 5, life: 22, color: '#f39c12', desc: 'Близко' },
+  pistol:   { name: 'Пистолет', emoji: '🎯', dmg: 18,  speed: 15, cd: 22, spread: 0.03, bullets: 1, life: 60, color: '#e74c3c', desc: 'Точный' },
+  minigun:  { name: 'Миниган',  emoji: '🌀', dmg: 4,   speed: 14, cd: 3,  spread: 0.10, bullets: 1, life: 42, color: '#f1c40f', desc: 'Шквал' }
 };
 
 let selectedChar = 'shelly';
@@ -579,7 +585,7 @@ function makePlayer(charKey, weaponKey, x, y, team) {
     shootCd: 0,
     superCharge: 0,
     superReady: false,
-    frenzyTime: 0,           // сколько осталось бешеного режима
+    frenzyTime: 0,
     hitFlash: 0,
     alive: true,
     respawnTimer: 0
@@ -626,7 +632,6 @@ document.addEventListener('keydown', e => {
   keys[e.key.toLowerCase()] = true;
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
   if (e.key === ' ') fireSuper();
-  // Q — стрельба мышью на ПК
   if (e.key.toLowerCase() === 'q') firing = true;
 });
 document.addEventListener('keyup', e => {
@@ -634,7 +639,6 @@ document.addEventListener('keyup', e => {
   if (e.key.toLowerCase() === 'q') firing = false;
 });
 
-// Универсальная функция стика
 function makeStick(joyId, stickId, onMove, onEnd, side) {
   const joy = document.getElementById(joyId);
   const stick = document.getElementById(stickId);
@@ -684,7 +688,6 @@ function makeStick(joyId, stickId, onMove, onEnd, side) {
     onEnd();
   }
 
-  // Touch events с изоляцией
   joy.addEventListener('touchstart', e => {
     e.preventDefault();
     e.stopPropagation();
@@ -737,7 +740,6 @@ function makeStick(joyId, stickId, onMove, onEnd, side) {
     onEnd();
   }, { passive: false });
 
-  // Мышка для ПК
   joy.addEventListener('mousedown', e => { e.preventDefault(); start(e); });
   window.addEventListener('mousemove', e => { if (active) move(e); });
   window.addEventListener('mouseup', e => { if (active) end(e); });
@@ -767,17 +769,14 @@ superBtn.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropaga
 // ================================================================
 function fireSuper() {
   if (!gameRunning || !player || !player.superReady || !player.alive) return;
-  if (player.frenzyTime > 0) return; // уже бешеный
+  if (player.frenzyTime > 0) return;
   player.superReady = false;
   player.superCharge = 0;
-  player.frenzyTime = 8 * 60; // 8 секунд * 60 fps
+  player.frenzyTime = 8 * 60;
   updateSuperUI();
 
-  // Визуальный взрыв
   spawnParticles(player.x, player.y, '#ffd700', 40, 10);
   spawnParticles(player.x, player.y, '#ff0000', 30, 8);
-
-  // Звук-эффект можно добавить позже
 }
 
 function updateSuperUI() {
@@ -793,7 +792,7 @@ function updateSuperUI() {
 
 function addSuperCharge(amount) {
   if (!player) return;
-  if (player.frenzyTime > 0) return; // не копим во время бешеного
+  if (player.frenzyTime > 0) return;
   player.superCharge = Math.min(100, player.superCharge + amount);
   if (player.superCharge >= 100 && !player.superReady) {
     player.superReady = true;
@@ -802,26 +801,22 @@ function addSuperCharge(amount) {
 }
 
 // ================================================================
-// СТРЕЛЬБА (теперь всегда можно двигаться)
+// СТРЕЛЬБА
 // ================================================================
 function shoot() {
   if (!player.alive) return;
   const w = WEAPONS[player.weapon];
   if (player.shootCd > 0) return;
 
-  // Базовый кулдаун
   let cd = w.cd;
-  // В бешеном режиме — стреляет в 3 раза быстрее!
   if (player.frenzyTime > 0) cd = Math.max(1, w.cd * 0.3);
   player.shootCd = cd;
 
-  // Направление: aimVec если активен, иначе — к ближайшему врагу, иначе — вперёд
   let baseAngle;
   const aMag = Math.hypot(aimVec.x, aimVec.y);
   if (aMag > 0.25) {
     baseAngle = Math.atan2(aimVec.y, aimVec.x);
   } else if (remote && remote.alive) {
-    // Автоприцел на врага
     baseAngle = Math.atan2(remote.y - player.y, remote.x - player.x);
   } else if (Math.hypot(moveVec.x, moveVec.y) > 0.2) {
     baseAngle = Math.atan2(moveVec.y, moveVec.x);
@@ -830,7 +825,6 @@ function shoot() {
   }
   player.angle = baseAngle;
 
-  // В бешеном — двойной выстрел (стреляет 2 пули подряд)
   const shotsPerFire = player.frenzyTime > 0 ? 2 : 1;
   for (let s = 0; s < shotsPerFire; s++) {
     for (let i = 0; i < w.bullets; i++) {
@@ -854,7 +848,6 @@ function shoot() {
       };
       bullets.push(bullet);
 
-      // Синхронизация
       if (conn && conn.open) {
         conn.send({
           type: 'shoot',
@@ -868,7 +861,6 @@ function shoot() {
     }
   }
 
-  // Частицы от выстрела
   spawnParticles(
     player.x + Math.cos(baseAngle) * 22,
     player.y + Math.sin(baseAngle) * 22,
@@ -914,11 +906,9 @@ function takeDamage(dmg) {
 function update(dt) {
   if (!gameRunning || !player || !remote) return;
 
-  // === Бешеный режим — таймер ===
   if (player.frenzyTime > 0) {
     player.frenzyTime -= dt;
     document.getElementById('frenzyTime').textContent = (player.frenzyTime / 60).toFixed(1);
-    // Ускорение движения
     player.speed = player.baseSpeed * 1.25;
     if (player.frenzyTime <= 0) {
       player.frenzyTime = 0;
@@ -927,7 +917,6 @@ function update(dt) {
     }
   }
 
-  // === Игрок ===
   if (player.alive) {
     let mx = moveVec.x, my = moveVec.y;
     if (keys['w'] || keys['arrowup'])    my -= 1;
@@ -944,14 +933,9 @@ function update(dt) {
     player.y = Math.max(player.r, Math.min(H - player.r, player.y));
     resolveCrateCollision(player);
 
-    // Поворот
     const aMag = Math.hypot(aimVec.x, aimVec.y);
     if (aMag > 0.25) player.angle = Math.atan2(aimVec.y, aimVec.x);
 
-    // === СТРЕЛЬБА (независимо от движения!) ===
-    // Условия для стрельбы:
-    // 1. Правый джойстик активен И направление задано (firing)
-    // 2. ИЛИ включён бешеный режим (автоматическая стрельба)
     const autoFire = player.frenzyTime > 0;
     if (firing || autoFire) {
       player.shootCd -= dt;
@@ -960,7 +944,6 @@ function update(dt) {
       player.shootCd -= dt;
     }
   } else {
-    // Респаун
     player.respawnTimer -= dt;
     if (player.respawnTimer <= 0) {
       player.alive = true;
@@ -978,12 +961,10 @@ function update(dt) {
     }
   }
 
-  // === Бот ===
   if (networkRole === 'bot' && remote.alive && player.alive) {
     updateBot(dt);
   }
 
-  // === Интерполяция удалённого ===
   if (remoteTargetState && (networkRole === 'host' || networkRole === 'client')) {
     remote.x += (remoteTargetState.x - remote.x) * 0.35;
     remote.y += (remoteTargetState.y - remote.y) * 0.35;
@@ -991,7 +972,6 @@ function update(dt) {
     remote.hp = remoteTargetState.hp;
     const wasAlive = remote.alive;
     remote.alive = remoteTargetState.alive;
-    // Синхронизация бешеного режима у врага
     remote.frenzyTime = (remoteTargetState.frenzy || 0);
     if (wasAlive && !remote.alive) {
       kills++;
@@ -1001,7 +981,6 @@ function update(dt) {
     }
   }
 
-  // === Отправка состояния ===
   const now = performance.now();
   if ((networkRole === 'host' || networkRole === 'client') && conn && conn.open && now - lastSentTime > 50) {
     lastSentTime = now;
@@ -1013,7 +992,6 @@ function update(dt) {
     });
   }
 
-  // === Пули ===
   bullets = bullets.filter(b => {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
@@ -1021,7 +999,6 @@ function update(dt) {
     if (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) return false;
     if (b.life <= 0) return false;
 
-    // Ящики
     for (const c of crates) {
       if (c.destroyed) continue;
       if (b.x > c.x && b.x < c.x + c.w && b.y > c.y && b.y < c.y + c.h) {
@@ -1035,13 +1012,11 @@ function update(dt) {
       }
     }
 
-    // Моя пуля → во врага
     if (b.owner === 0 && remote.alive) {
       if (dist(b, remote) < b.r + remote.r) {
         remote.hp -= b.dmg;
         remote.hitFlash = 6;
         spawnParticles(b.x, b.y, '#ff6b6b', 6, 4);
-        // +2 заряда супера за попадание
         addSuperCharge(2);
 
         if (remote.hp <= 0 && remote.alive) {
@@ -1071,7 +1046,6 @@ function update(dt) {
         return false;
       }
     }
-    // Чужая пуля → в меня
     if (b.owner === 1 && player.alive) {
       if (dist(b, player) < b.r + player.r) {
         takeDamage(b.dmg);
@@ -1097,7 +1071,6 @@ function updateBot(dt) {
   const angle = Math.atan2(player.y - remote.y, player.x - remote.x);
   remote.angle = angle;
 
-  // Бот тоже умеет бешеный режим
   if (remote.frenzyTime > 0) {
     remote.frenzyTime -= dt;
     remote.speed = remote.baseSpeed * 1.25;
@@ -1107,17 +1080,15 @@ function updateBot(dt) {
     }
   }
 
-  // Бот может активировать супер, если готов и игрок близко
   if (remote.superCharge >= 100 && d < 300 && remote.frenzyTime <= 0) {
     remote.superReady = true;
-    if (Math.random() < 0.02) { // шанс активации
+    if (Math.random() < 0.02) {
       remote.superReady = false;
       remote.superCharge = 0;
       remote.frenzyTime = 6 * 60;
       spawnParticles(remote.x, remote.y, '#ffd700', 30, 8);
     }
   }
-  // Копим заряд попаданий у бота
   if (remote.frenzyTime <= 0) {
     remote.superCharge = Math.min(100, (remote.superCharge || 0) + 0.15);
   }
@@ -1300,7 +1271,6 @@ function drawCrate(c) {
 function drawBrawler(p) {
   if (!p) return;
 
-  // Аура бешеного режима
   if (p.frenzyTime > 0 && p.alive) {
     const pulse = 1 + Math.sin(performance.now() / 80) * 0.15;
     const grad = ctx.createRadialGradient(p.x, p.y, p.r * 0.5, p.x, p.y, p.r * 3 * pulse);
@@ -1360,14 +1330,12 @@ function drawBrawler(p) {
   ctx.fillText(c.emoji, p.x, p.y + 1);
   ctx.textBaseline = 'alphabetic';
 
-  // HP бар
   const w = p.r * 2.4;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(p.x - w/2 - 1, p.y - p.r - 13, w + 2, 6);
   ctx.fillStyle = p.hp / p.maxHp > 0.3 ? '#2ecc71' : '#e74c3c';
   ctx.fillRect(p.x - w/2, p.y - p.r - 12, w * Math.max(0, p.hp / p.maxHp), 4);
 
-  // Имя
   ctx.font = 'bold 10px Arial';
   ctx.textAlign = 'center';
   ctx.fillStyle = p.frenzyTime > 0 ? '#ffd700' : (p.team === 0 ? '#4fc3f7' : '#ff6b6b');
@@ -1412,7 +1380,6 @@ function draw() {
 
   crates.forEach(drawCrate);
 
-  // Прицел
   if (firing && player && player.alive) {
     const mag = Math.hypot(aimVec.x, aimVec.y);
     if (mag > 0.25) {
@@ -1451,7 +1418,6 @@ function draw() {
   if (remote && remote.alive) drawOffscreenIndicator(remote, '#ff6b6b');
   if (player && player.alive) drawOffscreenIndicator(player, '#4fc3f7');
 
-  // Экранная вспышка при бешеном режиме
   if (player && player.frenzyTime > 0) {
     ctx.fillStyle = `rgba(255,200,0,${0.05 + Math.sin(performance.now()/100) * 0.03})`;
     ctx.fillRect(0, 0, W, H);
@@ -1481,7 +1447,6 @@ function copyCode() {
   setTimeout(() => document.getElementById('copyBtn').textContent = '📋 Скопировать код', 1500);
 }
 
-// ==== БОТ ====
 function startBotGame() {
   networkRole = 'bot';
   const charKeys = Object.keys(CHARACTERS);
