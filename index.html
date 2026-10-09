@@ -32,7 +32,6 @@
   .me-val { color: #4fc3f7; font-weight: bold; }
   .enemy-val { color: #ff6b6b; font-weight: bold; }
 
-  /* Индикатор супера сверху */
   #superBar {
     position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
     width: 200px; height: 10px;
@@ -54,7 +53,6 @@
     50% { box-shadow: 0 0 20px #ff0000; }
   }
 
-  /* ==== СТИКИ (два независимых) ==== */
   #joyL, #joyR {
     position: fixed; bottom: 25px;
     width: 130px; height: 130px; border-radius: 50%;
@@ -92,7 +90,6 @@
     50% { box-shadow: 0 0 36px rgba(255,215,0,1); transform: scale(1.08); }
   }
 
-  /* Полоса бешеной ульты */
   #frenzyBar {
     position: fixed; bottom: 165px; left: 50%; transform: translateX(-50%);
     width: 240px; height: 24px; border-radius: 12px;
@@ -142,8 +139,8 @@
   .overlay input:focus { outline: none; border-color: #fff; }
 
   .char-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; max-width: 480px; margin-top: 8px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; max-width: 620px; margin-top: 8px;
   }
   .weapon-grid {
     display: grid; grid-template-columns: repeat(4, 1fr);
@@ -164,9 +161,9 @@
     border-color: #ff6b6b; background: rgba(255,107,107,0.15);
     box-shadow: 0 0 15px rgba(255,107,107,0.5);
   }
-  .char-card .emoji, .weapon-card .emoji { font-size: 28px; }
-  .char-card .name, .weapon-card .name { font-size: 11px; font-weight: bold; margin-top: 3px; }
-  .char-card .desc, .weapon-card .desc { font-size: 9px; color: #aaa; margin-top: 2px; }
+  .char-card .emoji, .weapon-card .emoji { font-size: 24px; }
+  .char-card .name, .weapon-card .name { font-size: 10px; font-weight: bold; margin-top: 3px; }
+  .char-card .desc, .weapon-card .desc { font-size: 8px; color: #aaa; margin-top: 2px; }
 
   .hidden { display: none !important; }
 
@@ -320,15 +317,20 @@ const CHARACTERS = {
   primo:   { name: 'Эль Примо', emoji: '💪', color: '#27ae60', hp: 180, speed: 3.4, desc: 'Танк' },
   spike:   { name: 'Спайк',    emoji: '🌵', color: '#2ecc71', hp: 80,  speed: 4.2, desc: 'Хрупкий' },
   crow:    { name: 'Ворон',    emoji: '🐦', color: '#9b59b6', hp: 85,  speed: 4.8, desc: 'Уклонение' },
-  bull:    { name: 'Булл',     emoji: '🐮', color: '#c0392b', hp: 200, speed: 3.2, desc: 'Супер-танк' }
+  bull:    { name: 'Булл',     emoji: '🐮', color: '#c0392b', hp: 200, speed: 3.2, desc: 'Супер-танк' },
+  cosmo:   { name: 'Космо',    emoji: '🪐', color: '#8e44ad', hp: 100, speed: 3.8, desc: 'Орбита' },
+  wolverine:{ name: 'Росомаха', emoji: '🦡', color: '#f1c40f', hp: 160, speed: 4.2, desc: 'Регенерация' },
+  krot:    { name: 'Крот',     emoji: '🦫', color: '#8b5a2b', hp: 110, speed: 3.7, desc: 'ГАЗОВИК' }
 };
 
-// === ДОБАВЛЕН MINIGUN ===
 const WEAPONS = {
   p90:      { name: 'P90',      emoji: '🔫', dmg: 6,   speed: 13, cd: 5,  spread: 0.12, bullets: 1, life: 45, color: '#4fc3f7', desc: 'Скорострел' },
   shotgun:  { name: 'Дробовик', emoji: '💥', dmg: 8,   speed: 11, cd: 38, spread: 0.35, bullets: 5, life: 22, color: '#f39c12', desc: 'Близко' },
   pistol:   { name: 'Пистолет', emoji: '🎯', dmg: 18,  speed: 15, cd: 22, spread: 0.03, bullets: 1, life: 60, color: '#e74c3c', desc: 'Точный' },
-  minigun:  { name: 'Миниган',  emoji: '🌀', dmg: 4,   speed: 14, cd: 3,  spread: 0.10, bullets: 1, life: 42, color: '#f1c40f', desc: 'Шквал' }
+  minigun:  { name: 'Миниган',  emoji: '🌀', dmg: 4,   speed: 14, cd: 3,  spread: 0.10, bullets: 1, life: 42, color: '#f1c40f', desc: 'Шквал' },
+  cosmo_gun:{ name: 'Орбита',   emoji: '🪐', dmg: 9,   speed: 11, cd: 18, spread: 0.18, bullets: 3, life: 45, color: '#9b59b6', desc: '3 планеты' },
+  claws:    { name: 'Когти',    emoji: '🦡', dmg: 11,  speed: 13, cd: 8,  spread: 0.22, bullets: 3, life: 22, color: '#f39c12', desc: 'Ближний бой' },
+  gasgun:   { name: 'ГАЗОМЁТ',  emoji: '💨', dmg: 4,   speed: 10, cd: 45, spread: 1.2,  bullets: 15, life: 40, color: '#7cb342', desc: '15 снарядов', homing: true }
 };
 
 let selectedChar = 'shelly';
@@ -494,6 +496,7 @@ function handleNetworkData(data) {
     remote = makePlayer(data.hostChar, data.hostWeapon, W * 0.2, H * 0.5, 1);
     bullets = [];
     particles = [];
+    gasClouds = [];
     kills = 0;
     showVsScreenThenPlay(2000);
   }
@@ -507,6 +510,13 @@ function handleNetworkData(data) {
   }
   else if (data.type === 'shoot') {
     spawnRemoteBullet(data);
+  }
+  else if (data.type === 'gas') {
+    gasClouds.push({
+      x: data.x, y: data.y,
+      r: 32, life: 130, maxLife: 130,
+      owner: 1, tickTimer: 0, color: '#7cb342'
+    });
   }
   else if (data.type === 'hit') {
     takeDamage(data.dmg);
@@ -550,6 +560,7 @@ function startNetworkGame() {
   remote = makePlayer(remoteChar, remoteWeapon, W * 0.8, H * 0.5, 1);
   bullets = [];
   particles = [];
+  gasClouds = [];
   kills = 0;
   gameRunning = false;
   showVsScreenThenPlay(2000);
@@ -562,6 +573,7 @@ let player = null;
 let remote = null;
 let bullets = [];
 let particles = [];
+let gasClouds = [];
 let crates = [];
 let gameRunning = false;
 let gameStartTime = 0;
@@ -588,7 +600,8 @@ function makePlayer(charKey, weaponKey, x, y, team) {
     frenzyTime: 0,
     hitFlash: 0,
     alive: true,
-    respawnTimer: 0
+    respawnTimer: 0,
+    regenTimer: 0
   };
 }
 
@@ -619,7 +632,7 @@ function updateHUD() {
 }
 
 // ================================================================
-// ВВОД — ДВА НЕЗАВИСИМЫХ СТИКА
+// ВВОД
 // ================================================================
 const keys = {};
 let moveVec = { x: 0, y: 0 };
@@ -812,6 +825,7 @@ function shoot() {
   if (player.frenzyTime > 0) cd = Math.max(1, w.cd * 0.3);
   player.shootCd = cd;
 
+  // Направление: aimVec, иначе — к врагу
   let baseAngle;
   const aMag = Math.hypot(aimVec.x, aimVec.y);
   if (aMag > 0.25) {
@@ -825,6 +839,64 @@ function shoot() {
   }
   player.angle = baseAngle;
 
+  // === ГАЗОМЁТ КРОТА: веер из 15 снарядов ===
+  if (w.homing && player.char === 'krot') {
+    const N = w.bullets; // 15
+    // Веер на весь круг 360° + автонаводка на врага
+    const targetAngle = (remote && remote.alive)
+      ? Math.atan2(remote.y - player.y, remote.x - player.x)
+      : baseAngle;
+
+    for (let i = 0; i < N; i++) {
+      // Угол по всему кругу + смещение к цели
+      const spreadAngle = (i / N) * Math.PI * 2;
+      // Каждый снаряд летит в своём направлении, но чуть-чуть подкручен к врагу
+      const a = targetAngle + (spreadAngle - Math.PI) * 0.5;
+
+      const bullet = {
+        x: player.x + Math.cos(a) * (player.r + 4),
+        y: player.y + Math.sin(a) * (player.r + 4),
+        vx: Math.cos(a) * w.speed,
+        vy: Math.sin(a) * w.speed,
+        r: 4,
+        life: w.life,
+        dmg: w.dmg,
+        owner: 0,
+        color: w.color,
+        frenzy: player.frenzyTime > 0,
+        homing: true,          // автонаводка
+        homingStrength: 0.12,  // сила подкрутки
+        gas: true              // оставляет газ
+      };
+      bullets.push(bullet);
+
+      // Газовое облако в точке появления
+      gasClouds.push({
+        x: bullet.x, y: bullet.y,
+        r: 32, life: 130, maxLife: 130,
+        owner: 0, tickTimer: 0, color: '#7cb342'
+      });
+
+      if (conn && conn.open) {
+        conn.send({
+          type: 'shoot',
+          x: bullet.x, y: bullet.y,
+          vx: bullet.vx, vy: bullet.vy,
+          dmg: bullet.dmg,
+          weapon: player.weapon,
+          frenzy: bullet.frenzy,
+          homing: true
+        });
+        conn.send({ type: 'gas', x: bullet.x, y: bullet.y });
+      }
+    }
+
+    // Мощный выхлоп
+    spawnParticles(player.x, player.y, '#7cb342', 40, 9);
+    return;
+  }
+
+  // === Обычное оружие ===
   const shotsPerFire = player.frenzyTime > 0 ? 2 : 1;
   for (let s = 0; s < shotsPerFire; s++) {
     for (let i = 0; i < w.bullets; i++) {
@@ -879,7 +951,9 @@ function spawnRemoteBullet(data) {
     dmg: data.dmg,
     owner: 1,
     color: data.frenzy ? '#ffd700' : (WEAPONS[data.weapon]?.color || '#e74c3c'),
-    frenzy: data.frenzy
+    frenzy: data.frenzy,
+    homing: !!data.homing,
+    homingStrength: 0.12
   });
 }
 
@@ -905,6 +979,15 @@ function takeDamage(dmg) {
 // ================================================================
 function update(dt) {
   if (!gameRunning || !player || !remote) return;
+
+  if (player.char === 'wolverine' && player.alive) {
+    player.regenTimer += dt;
+    if (player.regenTimer > 30) {
+      player.hp = Math.min(player.maxHp, player.hp + 0.5);
+      player.regenTimer = 0;
+      updateHUD();
+    }
+  }
 
   if (player.frenzyTime > 0) {
     player.frenzyTime -= dt;
@@ -992,12 +1075,94 @@ function update(dt) {
     });
   }
 
+  // === ОБЛАКА ГАЗА ===
+  gasClouds = gasClouds.filter(g => {
+    g.life -= dt;
+    if (g.life <= 0) return false;
+    g.tickTimer += dt;
+    if (g.tickTimer >= 15) {
+      g.tickTimer = 0;
+      if (g.owner === 0 && remote.alive) {
+        if (dist(g, remote) < g.r + remote.r) {
+          remote.hp -= 2;
+          remote.hitFlash = 6;
+          spawnParticles(remote.x, remote.y, '#7cb342', 4, 3);
+          if (remote.hp <= 0 && remote.alive) {
+            remote.alive = false;
+            kills++;
+            addSuperCharge(30);
+            updateHUD();
+            if (networkRole === 'bot') {
+              setTimeout(() => {
+                if (!gameRunning || !remote) return;
+                remote.alive = true;
+                remote.hp = remote.maxHp;
+                let sx, sy, tries = 0;
+                do {
+                  sx = Math.random() * (W - 200) + 100;
+                  sy = Math.random() * (H - 200) + 100;
+                  tries++;
+                } while (dist({x: sx, y: sy}, player) < 250 && tries < 20);
+                remote.x = sx; remote.y = sy;
+              }, 2000);
+            }
+            checkWin();
+          }
+          if (networkRole === 'client' && conn && conn.open) {
+            conn.send({ type: 'hit', dmg: 2 });
+          }
+        }
+      }
+      if (g.owner === 1 && player.alive) {
+        if (dist(g, player) < g.r + player.r) {
+          takeDamage(2);
+        }
+      }
+    }
+    return true;
+  });
+
+  // === ПУЛИ ===
   bullets = bullets.filter(b => {
+    // Автонаводка (homing)
+    if (b.homing && remote && remote.alive && b.owner === 0) {
+      const angleToTarget = Math.atan2(remote.y - b.y, remote.x - b.x);
+      const speed = Math.hypot(b.vx, b.vy) || 1;
+      const currentAngle = Math.atan2(b.vy, b.vx);
+      let angleDiff = angleToTarget - currentAngle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      const newAngle = currentAngle + angleDiff * (b.homingStrength || 0.12);
+      b.vx = Math.cos(newAngle) * speed;
+      b.vy = Math.sin(newAngle) * speed;
+    }
+    // Автонаводка для чужих пуль (если бот-Крот)
+    if (b.homing && player && player.alive && b.owner === 1) {
+      const angleToTarget = Math.atan2(player.y - b.y, player.x - b.x);
+      const speed = Math.hypot(b.vx, b.vy) || 1;
+      const currentAngle = Math.atan2(b.vy, b.vx);
+      let angleDiff = angleToTarget - currentAngle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      const newAngle = currentAngle + angleDiff * (b.homingStrength || 0.12);
+      b.vx = Math.cos(newAngle) * speed;
+      b.vy = Math.sin(newAngle) * speed;
+    }
+
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= dt;
-    if (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) return false;
+    if (b.x < -30 || b.x > W + 30 || b.y < -30 || b.y > H + 30) return false;
     if (b.life <= 0) return false;
+
+    // Газовые снаряды оставляют след из облаков
+    if (b.gas && b.life % 8 < 1) {
+      gasClouds.push({
+        x: b.x, y: b.y,
+        r: 26, life: 90, maxLife: 90,
+        owner: b.owner, tickTimer: 0, color: '#7cb342'
+      });
+    }
 
     for (const c of crates) {
       if (c.destroyed) continue;
@@ -1016,7 +1181,7 @@ function update(dt) {
       if (dist(b, remote) < b.r + remote.r) {
         remote.hp -= b.dmg;
         remote.hitFlash = 6;
-        spawnParticles(b.x, b.y, '#ff6b6b', 6, 4);
+        spawnParticles(b.x, b.y, '#7cb342', 6, 4);
         addSuperCharge(2);
 
         if (remote.hp <= 0 && remote.alive) {
@@ -1071,6 +1236,14 @@ function updateBot(dt) {
   const angle = Math.atan2(player.y - remote.y, player.x - remote.x);
   remote.angle = angle;
 
+  if (remote.char === 'wolverine' && remote.alive) {
+    remote.regenTimer = (remote.regenTimer || 0) + dt;
+    if (remote.regenTimer > 30) {
+      remote.hp = Math.min(remote.maxHp, remote.hp + 0.5);
+      remote.regenTimer = 0;
+    }
+  }
+
   if (remote.frenzyTime > 0) {
     remote.frenzyTime -= dt;
     remote.speed = remote.baseSpeed * 1.25;
@@ -1122,6 +1295,39 @@ function updateBot(dt) {
   if (remote.shootCd <= 0 && d < 350) {
     const w = WEAPONS[remote.weapon];
     remote.shootCd = (w.cd + 6) * cdMult;
+
+    // Бот-Крот стреляет 15 газовыми снарядами с автонаводкой
+    if (w.homing && remote.char === 'krot') {
+      const N = w.bullets;
+      const targetAngle = angle;
+      for (let i = 0; i < N; i++) {
+        const spreadAngle = (i / N) * Math.PI * 2;
+        const a = targetAngle + (spreadAngle - Math.PI) * 0.5;
+        const bx = remote.x + Math.cos(a) * (remote.r + 4);
+        const by = remote.y + Math.sin(a) * (remote.r + 4);
+        bullets.push({
+          x: bx, y: by,
+          vx: Math.cos(a) * w.speed,
+          vy: Math.sin(a) * w.speed,
+          r: 4,
+          life: w.life,
+          dmg: w.dmg,
+          owner: 1,
+          color: w.color,
+          frenzy: false,
+          homing: true,
+          homingStrength: 0.12,
+          gas: true
+        });
+        gasClouds.push({
+          x: bx, y: by,
+          r: 32, life: 130, maxLife: 130,
+          owner: 1, tickTimer: 0, color: '#7cb342'
+        });
+      }
+      return;
+    }
+
     const shotsPerFire = remote.frenzyTime > 0 ? 2 : 1;
     for (let s = 0; s < shotsPerFire; s++) {
       for (let i = 0; i < w.bullets; i++) {
@@ -1380,6 +1586,27 @@ function draw() {
 
   crates.forEach(drawCrate);
 
+  // === ОБЛАКА ГАЗА ===
+  gasClouds.forEach(g => {
+    const alpha = (g.life / g.maxLife) * 0.38;
+    const grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, g.r);
+    grad.addColorStop(0, `rgba(124,179,66,${alpha})`);
+    grad.addColorStop(1, `rgba(124,179,66,0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const a = performance.now() / 500 + i * Math.PI / 2;
+      const px = g.x + Math.cos(a) * (g.r * 0.6);
+      const py = g.y + Math.sin(a) * (g.r * 0.6);
+      ctx.fillStyle = `rgba(180,220,100,${alpha * 1.5})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
   if (firing && player && player.alive) {
     const mag = Math.hypot(aimVec.x, aimVec.y);
     if (mag > 0.25) {
@@ -1400,16 +1627,27 @@ function draw() {
   }
 
   bullets.forEach(b => {
-    if (b.super || b.frenzy) {
+    if (b.gas) {
+      // Газовый снаряд — зелёный светящийся шар
+      ctx.fillStyle = 'rgba(124,179,66,0.5)';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7cb342';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c5e1a5';
+      ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r * 0.4, 0, Math.PI * 2); ctx.fill();
+    } else if (b.super || b.frenzy) {
       ctx.fillStyle = 'rgba(255,215,0,0.35)';
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2.2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffd700';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r * 0.4, 0, Math.PI * 2); ctx.fill();
     } else {
       ctx.fillStyle = b.color || '#4fc3f7';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r * 0.4, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(b.x - b.r*0.3, b.y - b.r*0.3, b.r * 0.4, 0, Math.PI * 2); ctx.fill();
   });
 
   if (remote) drawBrawler(remote);
@@ -1462,6 +1700,7 @@ function startBotGame() {
   remote = makePlayer(remoteChar, remoteWeapon, W * 0.8, H * 0.5, 1);
   bullets = [];
   particles = [];
+  gasClouds = [];
   kills = 0;
   gameRunning = false;
   showVsScreenThenPlay(2000);
